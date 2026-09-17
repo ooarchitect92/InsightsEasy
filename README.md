@@ -1,25 +1,23 @@
-# InsightsEasy
+# InsightsEasy — five workflow microservices
 
-## Five-core development branch
+## Scope
 
-The initial implementation is scoped to exactly five customer workflows from the supplied Unified Marketing Platform Technical Master v4:
+Exactly five business services: **connections**, **journeys**, **crm**, **reporting**, and **activation**. Identity, the gateway, worker processes, sandbox provider simulators, Kafka, RabbitMQ, BullMQ, separate queue/cache Redis, Docker, Kubernetes and CI/CD are supporting foundations, not additional product features.
 
-1. Connections and durable intake — source bindings, raw-byte authentication, receipts and transactional outbox.
-2. First-party acquisition journeys — permitted observed touches, acquisition evidence and explicit source/visitor linkage.
-3. Leads and CRM delivery — canonical leads, lifecycle history, durable commands and ambiguous-outcome reconciliation.
-4. Revenue, attribution and reporting — exact sale/refund accounting, three rule-based models, frozen snapshots and CSV.
-5. Consent-controlled conversion feedback — eligibility preview, current-purpose checks, durable delivery and corrections.
+The local source revision separates owner databases and credentials, signed service-to-service HTTP, signed committed events, current actor/workspace authorization, action/task recovery, and independent API/worker deployments. The frontend retains the same five workflows.
 
-Tenant authentication, policy, audit, MongoDB, Kafka, RabbitMQ, BullMQ, separate queue/cache Redis, Docker, Kubernetes and CI/CD support these workflows; they are not additional product modules.
+## Important: this branch is not yet a runnable checkout
 
-## Current publication status
+The connected GitHub tool accepted the service ownership registry, connections handler, scoped store, service authentication/RPC and domain/input contracts. It blocked the remaining grouped runtime upload and a corrective source write. The complete local microservice source package and checked patch are supplied in the originating development conversation. They have not all been committed here.
 
-This GitHub branch is an incomplete bootstrap, not the complete runnable application. Some application-source writes were blocked by the connected write tool. The complete source package and a Git patch are provided in the originating development conversation so they can be applied to this branch without force-pushing or modifying main.
+The published connections handler also requires the patch's transaction correction: its `setEnabled` version read must use the active `tx`, not the outer `store`. The corrected local implementation is included in the source handoff. Do not merge or deploy the partial branch, and do not treat local test results as certification of these incomplete published files.
 
-The complete local package passed server/frontend TypeScript checks, the Next.js production build, ESLint and 39 unit/contract tests. One test also checks 1,000 deterministic credit-conservation cases. These are local-package results, not end-to-end results for the files currently committed here.
+## Observed local verification
 
-The audited dependency artifact was produced by GitHub Actions run 35255885461. Its one-time resolution workflow has been retired. The full application's repeatable CI and deployment workflows are in the source handoff, not yet operational on this partial branch.
+The microservice source passed backend/frontend TypeScript checks, ESLint, the production frontend build, 39 existing pure unit/contract checks and 44 new service/security/recovery checks. The new suite exercises actual signed HTTP calls and an HTTP simulator, but uses isolated test-only memory stores and callback dispatchers. These are not real MongoDB or broker integration results.
 
-Real MongoDB/broker integration tests, browser workflows, image builds, Kubernetes deployment and live-provider certification remain unverified. CRM and advertising destinations in the initial package are explicitly labeled simulators. No Meta, Google or Zoho production integration is claimed.
+Two browser tests were attempted but navigation was blocked by the test environment's Chromium administrator policy. Docker was unavailable locally, so the new real MongoDB/Kafka/RabbitMQ/Redis/BullMQ integration suite was not executed. Container builds, Kubernetes deployment, restore/capacity/security acceptance and live-provider certification remain open.
 
-Keep the pull request in draft until source publication, clean-checkout CI and required integration tests pass. Do not deploy this partial repository as production software.
+CRM and advertising destinations are explicitly **simulators**. Meta, Google and Zoho adapters are not implemented or certified by this revision. A source package or passing mock test cannot close those provider gates.
+
+Draft PR #1 must remain unmerged until the complete corrected source and lockfile are published, clean-checkout CI passes, and all release-relevant integration and operational gates have evidence. The branch does not claim production readiness or immunity from failures.
