@@ -1,0 +1,7 @@
+{
+  "name": "@insightseasy/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {"dev": "next dev --hostname 0.0.0.0", "build": "next build --webpack", "start": "next start --hostname 0.0.0.0"},
+  "dependencies": {"next": "16.3.5", "react": "19.3.0", "react-dom": "19.3.0"}
+}

@@ -1,0 +1,25 @@
+name: Bootstrap dependency lock
+on:
+  push:
+    branches: [feat/five-core-workflows]
+    paths: [package.json, apps/web/package.json, .github/workflows/bootstrap-lock.yml]
+permissions:
+  contents: read
+jobs:
+  lock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+      - run: npm install --package-lock-only --ignore-scripts
+      - run: npm audit --json > dependency-audit.json || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-lock
+          path: |
+            package-lock.json
+            dependency-audit.json
+          if-no-files-found: error
