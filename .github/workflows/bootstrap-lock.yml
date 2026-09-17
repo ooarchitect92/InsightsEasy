@@ -14,10 +14,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22.16.0'
+      - run: npm pkg set dependencies.fastify=5.12.1 overrides.fastify=5.12.1
       - run: npm install --ignore-scripts
-      - name: Resolve security updates for this initial bootstrap only
-        run: npm audit fix --force --ignore-scripts || true
-      - name: Pin the resolved direct dependencies
+      - run: npm audit fix --force --ignore-scripts || true
+      - name: Pin resolved direct dependencies
         run: |
           node --input-type=module <<'JS'
           import fs from 'node:fs';
@@ -30,8 +30,7 @@ jobs:
           JS
           npm install --package-lock-only --ignore-scripts
       - run: npm audit --json > dependency-audit.json || true
-      - name: Export dependency toolchain for offline source verification
-        run: tar -czf dependency-toolchain.tgz node_modules
+      - run: tar -czf dependency-toolchain.tgz node_modules
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: dependency-lock
