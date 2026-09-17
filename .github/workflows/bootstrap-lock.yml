@@ -8,18 +8,42 @@ permissions:
 jobs:
   lock:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22.16.0'
-      - run: npm install --package-lock-only --ignore-scripts
+      - run: npm install --ignore-scripts
+      - name: Resolve security updates for this initial bootstrap only
+        run: npm audit fix --force --ignore-scripts || true
+      - name: Pin the resolved direct dependencies
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const p=JSON.parse(fs.readFileSync('package.json'));
+          const lock=JSON.parse(fs.readFileSync('package-lock.json'));
+          for(const group of ['dependencies','devDependencies'])
+            for(const name of Object.keys(p[group]||{}))
+              p[group][name]=lock.packages['node_modules/'+name].version;
+          fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');
+          JS
+          npm install --package-lock-only --ignore-scripts
       - run: npm audit --json > dependency-audit.json || true
+      - name: Export dependency toolchain for offline source verification
+        run: tar -czf dependency-toolchain.tgz node_modules
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: dependency-lock
           path: |
+            package.json
             package-lock.json
             dependency-audit.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-toolchain
+          path: dependency-toolchain.tgz
+          compression-level: 0
+          retention-days: 1
           if-no-files-found: error
