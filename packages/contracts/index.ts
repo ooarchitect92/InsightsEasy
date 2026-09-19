@@ -1,3 +1,4 @@
+import {providerConfig,googleConsent} from '../providers/contracts.ts';
 import { z } from 'zod';
 export const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
 export const name = z.string().trim().min(1).max(100);
@@ -10,10 +11,15 @@ export const credentials = z.object({email:z.string().email().max(254).transform
 export const registration = credentials.extend({businessName:name}).strict();
 export const workspaceInput = z.object({name,timezone:z.string().max(80).default('UTC'),currency:z.enum(['USD','INR','EUR','GBP','CAD','AUD','JPY','KWD']).default('USD')}).strict();
 export const connectionInput = z.object({
-  name,provider:z.enum(['signed_webhook','web_collector','simulator_crm','simulator_ads']),
+  name,provider:z.enum(['signed_webhook','web_collector','simulator_crm','simulator_ads','zoho','meta','google']),
   allowedOrigin:z.string().url().max(512).optional(),crmDestinationId:id.optional(),
+  credentialRef:id.optional(),providerConfig:providerConfig.optional(),
   failureMode:z.enum(['normal','reject','timeout_after_commit','throttle_once']).default('normal'),
-}).strict();
+}).strict().superRefine((c,ctx)=>{
+  const native=['zoho','meta','google'].includes(c.provider);
+  if(native&&(!c.credentialRef||c.providerConfig?.provider!==c.provider))ctx.addIssue({code:'custom',message:'A provider-specific configuration and server credential reference are required.'});
+  if(!native&&(c.credentialRef||c.providerConfig))ctx.addIssue({code:'custom',message:'Server provider credentials do not apply to this connection kind.'});
+});
 export const acquisition = z.object({
   url:z.string().url().max(2048),referrer:z.string().url().max(2048).optional(),
   utmSource:z.string().max(100).optional(),utmMedium:z.string().max(100).optional(),utmCampaign:z.string().max(100).optional(),
@@ -23,11 +29,11 @@ export const touchEvent = z.object({kind:z.literal('touch'),eventId:id,occurredA
   analyticsConsent:z.literal(true),acquisition}).strict();
 export const leadEvent = z.object({kind:z.literal('lead'),eventId:id,occurredAt:date,externalLeadKey:id,
   sourceVersion:z.number().int().min(1).max(2147483647),fullName:name,email:z.string().email().max(254),
-  touchLink:z.object({sourceId:id,visitorId:id}).strict().optional(),consent,evidence}).strict();
+  touchLink:z.object({sourceId:id,visitorId:id}).strict().optional(),consent,evidence,googleConsent:googleConsent.optional()}).strict();
 export const inboundEvent = z.discriminatedUnion('kind',[touchEvent,leadEvent]);
 export const stageInput = z.object({stage:z.enum(['new','contacted','qualified','disqualified','opportunity','won','lost']),
   reason:z.string().trim().min(3).max(300),expectedVersion:z.number().int().positive()}).strict();
-export const consentInput = z.object({consent,evidence,expectedVersion:z.number().int().positive()}).strict();
+export const consentInput = z.object({consent,evidence,googleConsent:googleConsent.optional(),expectedVersion:z.number().int().positive()}).strict();
 export const revenueInput = z.object({kind:z.enum(['sale','refund']),businessKey:id,leadId:id,currency:z.enum(['USD','INR','EUR','GBP','CAD','AUD','JPY','KWD']),
   amount:z.string().max(32),occurredAt:date,originalSaleId:id.optional(),sourceReference:z.string().trim().min(1).max(256)}).strict();
 export const reportInput = z.object({name,model:z.enum(['first_touch','last_touch','linear']),from:date,to:date,
@@ -44,3 +50,5 @@ export type ConnectionInput = z.infer<typeof connectionInput>;
 export type RevenueInput = z.infer<typeof revenueInput>;
 export type ReportRequest = z.infer<typeof reportInput>;
 export type Envelope = z.infer<typeof envelope>;
+
+export const actionRecoveryInput=z.object({mode:z.enum(['retry','reconcile']),expectedDispatchGeneration:z.number().int().nonnegative(),reason:z.string().trim().min(5).max(500),previewHash:id.optional()}).strict();

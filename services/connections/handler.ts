@@ -1,3 +1,4 @@
+import {providerManifest} from '../../packages/providers/contracts.ts';
 import {randomBytes,randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {canonical,hash,requireThat,safeUrl,verifySignature,scoped,stableId,type Scope} from '../../packages/domain/core.ts';
@@ -12,11 +13,9 @@ export const catalog=[
   {id:'web_collector',name:'First-party collector',kind:'source',state:'native_contract',operations:['touch']},
   {id:'simulator_crm',name:'CRM simulator',kind:'destination',state:'synthetic_only',operations:['upsert','read_back']},
   {id:'simulator_ads',name:'Conversion simulator',kind:'destination',state:'synthetic_only',operations:['purchase','refund','read_back']},
-  {id:'meta',name:'Meta',kind:'destination',state:'not_certified',operations:[]},
-  {id:'google',name:'Google',kind:'destination',state:'not_certified',operations:[]},
-  {id:'zoho',name:'Zoho CRM',kind:'destination',state:'not_certified',operations:[]},
+  ...Object.entries(providerManifest).map(([id,value])=>({id,name:id,...value})),
 ];
-export function publicConnection(row:Entity):Entity {const {sealedSecret:_,authority:_authority,...safe}=row;void _;void _authority;return safe as Entity;}
+export function publicConnection(row:Entity):Entity {const {sealedSecret:_,authority:_authority,...safe}=row;void _;void _authority;return {...safe,...(row.providerConfig?{providerConfigHash:hash(canonical(row.providerConfig))}:{})} as Entity;}
 export function connectionsService(d:Dependencies):Handler {
   const {store}=d;
   const secretContext=(s:Scope,id:string)=>`${s.organizationId}:${s.workspaceId}:${s.environment}:connection:${id}`;
@@ -86,13 +85,14 @@ export function connectionsService(d:Dependencies):Handler {
         origin:z.string().max(512).optional(),timestamp:z.string().max(30).optional(),signature:z.string().max(100).optional()}).strict().parse(r.input);
       const source=await store.get('connections',input.sourceId);requireThat(source&&source.enabled,'SOURCE_UNAVAILABLE','Source is unavailable.',404);
       const raw=Buffer.from(input.raw,'base64');requireThat(raw.byteLength<=32768,'REQUEST_TOO_LARGE','Event exceeds the payload limit.',413);
-      await rate(source._id);
       if(input.mode==='signed'){
         requireThat(source.provider==='signed_webhook','SOURCE_UNAVAILABLE','Signed source is unavailable.',404);
         const secret=unseal(String(source.sealedSecret),d.settings.encryptionKey,secretContext(rowScope(source),source._id));
         requireThat(verifySignature(secret,input.timestamp??'',raw,input.signature??'',Math.floor(d.now().getTime()/1000)),
           'INVALID_SIGNATURE','Webhook signature is invalid.',401);
       }else requireThat(source.provider==='web_collector'&&input.origin===source.allowedOrigin,'ORIGIN_DENIED','Collector origin is not permitted.',403);
+      // Invalid signatures must not spend a source's authenticated quota.
+      await rate(source._id);
       const payload=dto.inboundEvent.parse(JSON.parse(raw.toString('utf8')));return admit(source,payload);
     }
     if(r.operation==='collectorConfiguration') {
@@ -120,10 +120,10 @@ export function connectionsService(d:Dependencies):Handler {
       requireThat(!body.crmDestinationId||body.provider==='signed_webhook','INVALID_BINDING','Only signed lead sources can configure automatic CRM delivery.');
       const result=await idempotent(store,scope,'connection.create',keyOf(input.key),body,async tx=>{
         if(body.crmDestinationId){const destination=await owned(tx,'connections',body.crmDestinationId,scope);
-          requireThat(destination.provider==='simulator_crm'&&destination.enabled,'INVALID_DESTINATION','Select an enabled CRM destination.');}
+          requireThat(['simulator_crm','zoho'].includes(String(destination.provider))&&destination.enabled,'INVALID_DESTINATION','Select an enabled CRM destination.');}
         const id=randomUUID(),secret=randomBytes(32).toString('base64url');
         await tx.insert('connections',{_id:id,...scopeFields(scope),...body,enabled:true,version:1,createdBy:scope.actorId,authority:scope.authority,createdAt:d.now().toISOString(),
-          capabilityVersion:'five-core-v2',mappingVersion:'canonical-contact-v1',...(body.provider==='signed_webhook'?{sealedSecret:seal(secret,d.settings.encryptionKey,secretContext(scope,id))}:{})});
+          capabilityVersion:'five-core-v3',providerEvidence:body.providerConfig?'configured_not_externally_verified':'native_or_simulator',mappingVersion:'canonical-contact-v1',...(body.provider==='signed_webhook'?{sealedSecret:seal(secret,d.settings.encryptionKey,secretContext(scope,id))}:{})});
         await audit(tx,scope,'connection.created',id,{provider:body.provider});return {id};
       });
       const row=await owned(store,'connections',result.id,scope);
@@ -132,7 +132,7 @@ export function connectionsService(d:Dependencies):Handler {
     if(r.operation==='setEnabled') {
       const id=dto.id.parse(input.id),body=z.object({enabled:z.boolean(),expectedVersion:z.number().int().positive()}).strict().parse(input.body);
       return idempotent(store,scope,'connection.enabled:'+id,keyOf(input.key),body,async tx=>{
-        const old=await owned(store,'connections',id,scope);requireThat(old.version===body.expectedVersion,'STATE_CONFLICT','Refresh the connection.',409);
+        const old=await owned(tx,'connections',id,scope);requireThat(old.version===body.expectedVersion,'STATE_CONFLICT','Refresh the connection.',409);
         await tx.put('connections',{...old,enabled:body.enabled,version:Number(old.version)+1});
         await audit(tx,scope,'connection.enabled.changed',id,{enabled:body.enabled});return {updated:true,version:Number(old.version)+1};
       });

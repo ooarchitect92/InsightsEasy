@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test';
+export default defineConfig({testDir:'tests/e2e',timeout:180000,expect:{timeout:45000},fullyParallel:false,workers:1,retries:0,reporter:[['list'],['html',{open:'never'}]],use:{...(process.env.CHROMIUM_PATH?{launchOptions:{executablePath:process.env.CHROMIUM_PATH,args:['--no-sandbox']}}:{}),baseURL:process.env.PUBLIC_ORIGIN??'http://localhost:3000',trace:'retain-on-failure',screenshot:'only-on-failure',video:'off'},outputDir:'test-results'});

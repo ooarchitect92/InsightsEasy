@@ -66,11 +66,11 @@ export type Consent = Record<Purpose, ConsentState>;
 export const unknownConsent = (): Consent => ({ service: 'unknown', analytics: 'unknown', advertising: 'unknown' });
 export type Preflight = {
   environment: string; enabled: boolean; sourceEnabled: boolean; role: string; consent: ConsentState;
-  capability: boolean; currentVersion: number; requestedVersion: number; deadline: string;
+  capability: boolean; productionCapable?: boolean; currentVersion: number; requestedVersion: number; deadline: string;
 };
 export function preflight(p: Preflight, now = Date.now()): string[] {
   const reasons: string[] = [];
-  if (p.environment !== 'sandbox') reasons.push('PROVIDER_NOT_CERTIFIED_FOR_LIVE');
+  if (p.environment !== 'sandbox' && !p.productionCapable) reasons.push('PROVIDER_NOT_CERTIFIED_FOR_LIVE');
   if (!p.capability) reasons.push('UNSUPPORTED_CAPABILITY');
   if (!p.enabled) reasons.push('DESTINATION_DISABLED');
   if (!p.sourceEnabled) reasons.push('SOURCE_DISABLED');

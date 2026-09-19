@@ -1,0 +1,14 @@
+.git
+node_modules
+**/node_modules
+**/.next
+dist
+.env
+.env.*
+artifacts
+test-results
+playwright-report
+*.log
+.bootstrap
+.local/
+**/evidence-runtime/

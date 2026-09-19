@@ -1,3 +1,4 @@
+import type {ProviderExecutor} from '../../packages/providers/contracts.ts';
 import {z} from 'zod';
 import {DomainError, requireThat, type Scope, type Permission} from '../../packages/domain/core.ts';
 import {role,id} from '../../packages/contracts/index.ts';
@@ -11,6 +12,7 @@ export type RpcRequest=z.infer<typeof rpcRequestSchema>;
 export type Call = (target:Owner,operation:string,input:unknown,context?:RpcRequest['context'])=>Promise<Entity>;
 export type Settings={environment:'sandbox'|'production';publicOrigin:string;encryptionKey:Buffer;simulatorOrigin:string;
   simulatorToken:string;keyRing:KeyRing;service:Service;port:number;origins:Record<Owner,string>;rpcTimeoutMs:number;tls?:{key:Buffer;cert:Buffer};
+  providerExecutor?:ProviderExecutor;
   cache?:{get:(key:string)=>Promise<string|null>;set:(key:string,value:string)=>Promise<void>}};
 export interface Dependencies {store:Store;call:Call;settings:Settings;now:()=>Date;}
 export type Handler=(request:RpcRequest,caller:Service)=>Promise<unknown>;

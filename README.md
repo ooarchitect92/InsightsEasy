@@ -1,23 +1,13 @@
-# InsightsEasy — five workflow microservices
+# InsightsEasy
 
-## Scope
+## Five-service development on main
 
-Exactly five business services: **connections**, **journeys**, **crm**, **reporting**, and **activation**. Identity, the gateway, worker processes, sandbox provider simulators, Kafka, RabbitMQ, BullMQ, separate queue/cache Redis, Docker, Kubernetes and CI/CD are supporting foundations, not additional product features.
+Business scope remains connections/intake, acquisition journeys, leads/CRM, revenue/attribution/reporting, and consent-controlled conversion feedback. Identity, gateway and execution workers support those five services.
 
-The local source revision separates owner databases and credentials, signed service-to-service HTTP, signed committed events, current actor/workspace authorization, action/task recovery, and independent API/worker deployments. The frontend retains the same five workflows.
+The application source is being restored to main after the feature branch was merged. This commit publishes the frontend, service handlers, provider adapters and workers with clean-checkout build checks. Test suites and complete deployment configuration are restored in subsequent commits. This is development code, not a production release or a claim that all requested workflows have passed acceptance.
 
-## Important: this branch is not yet a runnable checkout
+Runtime: Next.js/React, TypeScript, NestJS/Fastify, owner-scoped MongoDB, Kafka facts, RabbitMQ external-command workers, BullMQ report workers, separate queue/cache Redis. Provider credentials are server-side. External acceptance, processing, verification and ambiguous outcomes remain separate states.
 
-The connected GitHub tool accepted the service ownership registry, connections handler, scoped store, service authentication/RPC and domain/input contracts. It blocked the remaining grouped runtime upload and a corrective source write. The complete local microservice source package and checked patch are supplied in the originating development conversation. They have not all been committed here.
+The scoped Zoho Leads, Meta offline Purchase and Google Data Manager adapters require authorized account testing. Synthetic provider tests are not live certification. Native Meta enquiry intake, interactive authorization/discovery, authoritative CRM follow-up and other latest-specification gaps must not be advertised as complete from this baseline.
 
-The published connections handler also requires the patch's transaction correction: its `setEnabled` version read must use the active `tx`, not the outer `store`. The corrected local implementation is included in the source handoff. Do not merge or deploy the partial branch, and do not treat local test results as certification of these incomplete published files.
-
-## Observed local verification
-
-The microservice source passed backend/frontend TypeScript checks, ESLint, the production frontend build, 39 existing pure unit/contract checks and 44 new service/security/recovery checks. The new suite exercises actual signed HTTP calls and an HTTP simulator, but uses isolated test-only memory stores and callback dispatchers. These are not real MongoDB or broker integration results.
-
-Two browser tests were attempted but navigation was blocked by the test environment's Chromium administrator policy. Docker was unavailable locally, so the new real MongoDB/Kafka/RabbitMQ/Redis/BullMQ integration suite was not executed. Container builds, Kubernetes deployment, restore/capacity/security acceptance and live-provider certification remain open.
-
-CRM and advertising destinations are explicitly **simulators**. Meta, Google and Zoho adapters are not implemented or certified by this revision. A source package or passing mock test cannot close those provider gates.
-
-Draft PR #1 must remain unmerged until the complete corrected source and lockfile are published, clean-checkout CI passes, and all release-relevant integration and operational gates have evidence. The branch does not claim production readiness or immunity from failures.
+Local prerequisite: the Node version in `.nvmrc`. `npm ci --ignore-scripts`, `npm run lint` and `npm run build` are the initial clean-checkout checks. Production activation is not enabled by a passing build.

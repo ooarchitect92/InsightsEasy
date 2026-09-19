@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.server.json","compilerOptions":{"noEmit":true,"allowImportingTsExtensions":true},"include":["services/**/*.ts","packages/**/*.ts","tests/**/*.ts","scripts/provision-owner.ts","scripts/contracts.ts"],"exclude":["node_modules","dist","apps/web"]}

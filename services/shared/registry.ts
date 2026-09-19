@@ -12,7 +12,7 @@ export const collections: Record<Owner, readonly string[]> = {
   identity: [...infrastructure, 'users', 'sessions', 'organizations', 'workspaces', 'memberships', 'rateLimits'],
   connections: [...infrastructure, 'connections', 'receipts', 'rateLimits'],
   journeys: [...infrastructure, 'touches'],
-  crm: [...infrastructure, 'leads', 'stages', 'consents', 'consentHistory', 'actions', 'attempts', 'usage'],
+  crm: [...infrastructure, 'leads', 'stages', 'consents', 'consentHistory', 'effectLocks', 'actions', 'attempts', 'usage'],
   reporting: [...infrastructure, 'revenue', 'tasks', 'reports', 'usage'],
   activation: [...infrastructure, 'previews', 'actions', 'attempts', 'usage'],
   simulator: [...infrastructure, 'effects', 'objects', 'throttles'],
