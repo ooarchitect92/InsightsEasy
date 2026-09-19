@@ -1,0 +1,51 @@
+name: Import verified dependency lock
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/import-verified-lock.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: import-verified-lock
+  cancel-in-progress: false
+jobs:
+  import:
+    if: github.repository == 'ooarchitect92/InsightsEasy' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: main
+      - name: Retrieve and verify the repository's known dependency artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --proto '=https' --proto-redir '=https' \
+            -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
+            'https://api.github.com/repos/ooarchitect92/InsightsEasy/actions/artifacts/10512540608/zip' \
+            -o "$RUNNER_TEMP/verified-lock.zip"
+          echo 'cbddbc2dcafb95ec1267994f438bed9cd9b77f9734d268814b2bfe2908f68cab  '"$RUNNER_TEMP/verified-lock.zip" | sha256sum --check
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, zipfile
+          with zipfile.ZipFile(pathlib.Path(os.environ['RUNNER_TEMP']) / 'verified-lock.zip') as archive:
+              content = json.loads(archive.read('package-lock.json'))
+          content['version'] = '0.3.0'
+          content['packages']['']['version'] = '0.3.0'
+          content['packages']['apps/web']['version'] = '0.3.0'
+          data = (json.dumps(content, indent=2, ensure_ascii=False) + '\n').encode()
+          assert hashlib.sha256(data).hexdigest() == '354d9e19b742943897cffd7596128e6be821f79a0f00f2fc8cb41b7987d33249', 'Lock differs from tested source'
+          pathlib.Path('package-lock.json').write_bytes(data)
+          PY
+      - name: Commit only the verified lock without rewriting history
+        run: |
+          set -euo pipefail
+          git add -- package-lock.json
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'build: import verified five-core dependency lock'
+          git push origin HEAD:main
