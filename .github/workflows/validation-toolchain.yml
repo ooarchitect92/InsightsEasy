@@ -1,0 +1,49 @@
+name: Prepare isolated validation toolchain
+on:
+  push:
+    branches: [feat/five-core-workflows]
+    paths: [.github/workflows/validation-toolchain.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-runtime-tools:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Collect public, versioned service runtimes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p toolchain/mongo toolchain/redis toolchain/kafka toolchain/rabbitmq toolchain/erlang toolchain/openssl
+          docker pull mongo:8.0.15
+          docker pull redis:7.4.6-bookworm
+          docker pull apache/kafka:4.2.0
+          docker pull rabbitmq:4.3.5-management
+          docker image inspect mongo:8.0.15 redis:7.4.6-bookworm apache/kafka:4.2.0 rabbitmq:4.3.5-management > toolchain/image-provenance.json
+          m=$(docker create mongo:8.0.15)
+          r=$(docker create redis:7.4.6-bookworm)
+          k=$(docker create apache/kafka:4.2.0)
+          q=$(docker create rabbitmq:4.3.5-management)
+          trap 'docker rm -f "$m" "$r" "$k" "$q" >/dev/null 2>&1 || true' EXIT
+          docker cp "$m:/usr/bin/mongod" toolchain/mongo/mongod
+          docker cp "$r:/usr/local/bin/redis-server" toolchain/redis/redis-server
+          docker cp "$r:/usr/local/bin/redis-cli" toolchain/redis/redis-cli
+          docker cp "$k:/opt/kafka/." toolchain/kafka/
+          docker cp "$q:/opt/erlang/." toolchain/erlang/
+          docker cp "$q:/opt/openssl/." toolchain/openssl/
+          docker cp "$q:/opt/rabbitmq/." toolchain/rabbitmq/
+          docker run --rm --entrypoint mongod mongo:8.0.15 --version > toolchain/mongo-version.txt
+          docker run --rm redis:7.4.6-bookworm redis-server --version > toolchain/redis-version.txt
+          docker run --rm --entrypoint erl rabbitmq:4.3.5-management -noshell -eval 'io:format("~s~n", [erlang:system_info(otp_release)]), halt().' > toolchain/erlang-version.txt
+          find toolchain -type f -print0 | sort -z | xargs -0 sha256sum > toolchain.sha256
+          tar -czf validation-toolchain.tgz toolchain toolchain.sha256
+          sha256sum validation-toolchain.tgz > validation-toolchain.tgz.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: isolated-validation-toolchain
+          path: |
+            validation-toolchain.tgz
+            validation-toolchain.tgz.sha256
+          retention-days: 1
+          if-no-files-found: error
