@@ -6,7 +6,7 @@
   "workspaces": ["apps/web"],
   "engines": {"node": ">=22.16.0 <25"},
   "scripts": {
-    "setup": "node scripts/setup.mjs",
+    "setup": "node scripts/generate-compose.mjs && node scripts/setup.mjs",
     "build:server": "tsc -p tsconfig.server.json",
     "build:web": "npm run build --workspace @insightseasy/web",
     "build": "npm run build:server && npm run build:web",
@@ -15,9 +15,9 @@
     "test": "node --experimental-strip-types --test tests/unit/*.test.ts",
     "test:integration": "node --experimental-strip-types --test --test-concurrency=1 tests/integration/*.test.ts",
     "test:e2e": "playwright test",
-    "dev": "node scripts/dev.mjs",
     "test:components": "node scripts/test-components.mjs",
-    "test:providers": "node scripts/test-providers.mjs"
+    "test:providers": "node scripts/test-providers.mjs",
+    "dev": "node scripts/dev.mjs"
   },
   "dependencies": {
     "@fastify/cookie": "11.0.2",

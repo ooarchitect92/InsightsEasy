@@ -45,7 +45,9 @@ jobs:
       - name: Start HTTP component harness and production frontend
         run: |
           node --experimental-strip-types tests/microservices/browser-server.ts > /tmp/insightseasy-component.log 2>&1 &
-          npm run start --workspace @insightseasy/web > /tmp/insightseasy-web.log 2>&1 &
+          cp -r apps/web/public apps/web/.next/standalone/apps/web/public
+          cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static
+          HOSTNAME=0.0.0.0 node apps/web/.next/standalone/apps/web/server.js > /tmp/insightseasy-web.log 2>&1 &
           node scripts/wait.mjs http://localhost:3000
           node scripts/wait.mjs http://localhost:4000/health/ready
       - name: Browser UI and consent acceptance with test stores
@@ -61,3 +63,46 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+  real-stack:
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      COMPOSE_PARALLEL_LIMIT: '2'
+      TEST_DESTRUCTIVE: dedicated-sandbox
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run setup
+      - run: node scripts/generate-compose.mjs --check && docker compose config --quiet
+      - name: Build the actual isolated runtime images
+        run: docker compose --progress plain build identity connections journeys crm reporting activation simulator gateway web
+      - name: Start real databases, brokers, migrations, APIs and workers
+        run: docker compose up -d --no-build --wait --wait-timeout 300
+      - name: Real infrastructure recovery and business invariants
+        run: npm run test:integration
+      - run: npx playwright install --with-deps chromium
+      - name: Browser through real gateway, MongoDB, Kafka, RabbitMQ and BullMQ
+        run: npm run test:e2e
+      - name: Sanitized service diagnostics
+        if: always()
+        run: |
+          docker compose ps --all || true
+          docker compose logs --no-color --tail=60 || true
+          for file in test-results/*/error-context.md; do [ ! -f "$file" ] || cat "$file"; done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: real-stack-browser-evidence
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - name: Remove only the disposable CI stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans || true
