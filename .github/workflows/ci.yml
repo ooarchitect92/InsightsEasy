@@ -1,4 +1,4 @@
-name: Application source checks
+name: Five-service acceptance
 on:
   push:
     branches: [main]
@@ -10,7 +10,7 @@ concurrency:
   group: application-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  build:
+  quality:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -22,6 +22,42 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm run lint
+      - run: npm run lint && npm run typecheck
+      - run: npm test && npm run test:components && npm run test:providers
       - run: npm run build
       - run: npm audit --audit-level=high
+  browser-component:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      GATEWAY_ORIGIN: http://127.0.0.1:4000
+      NO_AUTOSTART: 'true'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build:web
+      - name: Start HTTP component harness and production frontend
+        run: |
+          node --experimental-strip-types tests/microservices/browser-server.ts > /tmp/insightseasy-component.log 2>&1 &
+          npm run start --workspace @insightseasy/web > /tmp/insightseasy-web.log 2>&1 &
+          node scripts/wait.mjs http://localhost:3000
+          node scripts/wait.mjs http://localhost:4000/health/ready
+      - name: Browser UI and consent acceptance with test stores
+        run: npm run test:e2e
+      - name: Diagnostic logs
+        if: always()
+        run: cat /tmp/insightseasy-component.log /tmp/insightseasy-web.log 2>/dev/null || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: browser-component-evidence
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
